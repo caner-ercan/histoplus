@@ -17,24 +17,12 @@ DEFAULT_CACHE_DIR = Path("~/.histoplus").expanduser()
 HF_SUBCACHE = "hf_cache"
 
 
-class HistoPLUSAuthError(RuntimeError):
-    """Raised when accessing a private Hub repo without proper auth (HF token)."""
-
-    def __init__(self, repo_id: str):
-        super().__init__(
-            f"Authentication failed for repo '{repo_id}'. "
-            "If the repository is private, set a valid token via the "
-            "HUGGING_FACE_HUB_TOKEN environment variable (or `huggingface-cli login`)."
-        )
-
-
 class HistoPLUSNotFoundError(FileNotFoundError):
-    """Raised when the request file/revision does not exist on the Hub."""
+    """Raised when the requested file does not exist in the local container path."""
 
-    def __init__(self, repo_id: str, filename: str, revision: Optional[str]):
-        rev = f"@{revision}" if revision else ""
+    def __init__(self, repo_id: str, filepath: str, revision: Optional[str]):
         super().__init__(
-            f"File '{filename}' not found in repo '{repo_id}{rev}' on the Hugging Face Hub."
+            f"File not found locally at '{filepath}'. (Original repo: '{repo_id}')"
         )
 
 
@@ -56,48 +44,39 @@ def load_weights_from_hub(
     local_files_only: bool = False,
     **pickle_load_args,
 ):
-    """
-    Load model weights with torch.load, fetching from Hugging Face Hub if needed.
+   """
+    Load model weights with torch.load directly from the local container filesystem.
+    Bypasses the Hugging Face Hub entirely.
 
     Parameters
     ----------
     repo_id : str
-        e.g. 'owkin/histoplus' (organization_or_user/repo_name).
+        Kept for backward compatibility with existing function calls.
     filename : str
         Path inside the repo, e.g. 'weights/model.pt'.
     revision : Optional[str]
-        Branch, tag, or commit SHA. If None, uses repo default branch.
+        Kept for backward compatibility.
     map_location : Optional[torch.device]
         Where to map the loaded tensors (e.g., 'cpu').
     local_files_only : bool
-        If True, do not attempt network access; use only local cache.
+        Ignored in this version, as it always loads locally.
 
     Returns
     -------
     Any
         The object returned by `torch.load(...)`.
     """
-    try:
-        cached_path = hf_hub_download(
-            repo_id=repo_id,
-            filename=filename,
-            revision=revision,
-            cache_dir=str(_get_cache_dir()),
-            local_files_only=local_files_only,
-        )
-    except LocalEntryNotFoundError as e:
-        # Requested to stay offline but file not in cache
-        raise HistoPLUSNotFoundError(repo_id, filename, revision) from e
-    except HfHubHTTPError as e:
-        # 401/403 -> auth; 404 -> not found; re-raise others verbatim
-        if e.response is not None and e.response.status_code in (401, 403):
-            raise HistoPLUSAuthError(repo_id) from e
-        if e.response is not None and e.response.status_code == 404:
-            raise HistoPLUSNotFoundError(repo_id, filename, revision) from e
-        raise
+# Fetch the directory defined during the Docker build, defaulting to /opt/histoplus_models
+    base_model_dir = Path(os.getenv("HISTOPLUS_MODEL_DIR", "/opt/histoplus_models"))
+    
+    # Construct the full local path
+    local_path = base_model_dir / filename
+
+    if not local_path.exists():
+        raise HistoPLUSNotFoundError(repo_id, str(local_path), revision)
 
     return torch.load(
-        cached_path,
+        local_path,
         map_location=map_location,
         pickle_module=pickle_module,
         **pickle_load_args,
