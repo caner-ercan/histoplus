@@ -139,11 +139,18 @@ def get_tiling_slide_level(
     mpp_relative_diff = abs(mpp - chosen_raw_mpp) / mpp
 
     if mpp_relative_diff > mpp_rtol:
-        raise MPPNotAvailableError(
-            f"Requested MPP ({mpp}) is not available in the slide. "
-            f"Closest one is {chosen_raw_mpp} (relative difference {mpp_relative_diff} > {mpp_rtol})."
-            "Double check the resolution of the slide, or increase the `mpp_rtol` parameter."
-        )
+        if chosen_raw_mpp < mpp:
+            if verbose:
+                logger.warning(
+                    f"Requested MPP ({mpp}) is not available within tolerance {mpp_rtol}. "
+                    f"Proceeding with the higher resolution available: {chosen_raw_mpp}."
+                )
+        else:
+            raise MPPNotAvailableError(
+                f"Requested MPP ({mpp}) is not available in the slide. "
+                f"Closest one is {chosen_raw_mpp} (relative difference {mpp_relative_diff} > {mpp_rtol})."
+                "Double check the resolution of the slide, or increase the `mpp_rtol` parameter."
+            )
 
     if verbose:
         logger.info(
