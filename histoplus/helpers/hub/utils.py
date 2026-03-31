@@ -66,18 +66,17 @@ def load_weights_from_hub(
     Any
         The object returned by `torch.load(...)`.
     """
-    # Fetch the directory defined during the Docker build, defaulting to /opt/histoplus_models
-    base_model_dir = Path(os.getenv("HISTOPLUS_MODEL_DIR", "/opt/histoplus_models"))
-    
-    # Construct the full local path
-    local_path = base_model_dir / filename
+   base_model_dir = Path(os.getenv("HISTOPLUS_MODEL_DIR", "/opt/histoplus_models"))
 
-    if not local_path.exists():
-        raise HistoPLUSNotFoundError(repo_id, str(local_path), revision)
+   # Construct the full local path
+   local_path = base_model_dir / filename
 
-    return torch.load(
+   if not local_path.exists():
+    raise HistoPLUSNotFoundError(repo_id, str(local_path), revision)
+
+   return torch.load(
         local_path,
         map_location=map_location,
         pickle_module=pickle_module,
         **pickle_load_args,
-    )
+        )
