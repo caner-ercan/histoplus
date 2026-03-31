@@ -66,7 +66,7 @@ def load_weights_from_hub(
     Any
         The object returned by `torch.load(...)`.
     """
-# Fetch the directory defined during the Docker build, defaulting to /opt/histoplus_models
+    # Fetch the directory defined during the Docker build, defaulting to /opt/histoplus_models
     base_model_dir = Path(os.getenv("HISTOPLUS_MODEL_DIR", "/opt/histoplus_models"))
     
     # Construct the full local path
