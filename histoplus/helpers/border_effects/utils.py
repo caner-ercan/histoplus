@@ -79,7 +79,7 @@ def find_non_overlapping_border_cells(
     out = pd.DataFrame([cell._asdict() for cell in non_overlapping])  # type: ignore
 
     if "Index" in out.columns:
-        out.drop(columns=["Index"], axis=1, inplace=True)
+        out.drop(columns=["Index"], inplace=True)
 
     return out
 
